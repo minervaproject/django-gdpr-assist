@@ -418,16 +418,7 @@ class PrivacyModel(models.Model):
         for flat_field in flat_fields:
             try:
                 field = getattr(cls, flat_field)
-            except AttributeError:
-                logger.exception(
-                    "Make sure {field} is a field on the model {model_name}".format(
-                        field=flat_field,
-                        model_name=cls.__class__.__name__,
-                    )
-                )
-                raise
 
-            try:
                 res += "%s|-> %s\n" % (prefix, field.field_name)
             except:
                 message = "Field name {field_name} is a field, but doesn't seem to be a flat field, " \
