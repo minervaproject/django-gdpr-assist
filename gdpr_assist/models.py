@@ -26,9 +26,13 @@ from .anonymiser import anonymise_field, anonymise_related_objects
 from .signals import pre_anonymise, post_anonymise
 
 try:
-    from exceptions import RecursionError
-except ImportError:  # Handle python < 3
+    # Handle python < 3
     from exceptions import RuntimeError as RecursionError
+except ImportError:
+    # It's available as part of the builtins in python >3 and doesn't need to be
+    # imported. We do an explicit import here to make sure we can test the behavior
+    # more easily. When we remove support for python 2 we can remove this code.
+    from builtins import RecursionError
 
 logger = logging.getLogger(__name__)
 
@@ -483,86 +487,6 @@ class PrivacyModel(models.Model):
 
     class Meta:
         abstract = True
-
-
-@python_2_unicode_compatible
-class RetentionPolicyItem(PrivacyModel):
-    description = models.CharField(default="", max_length=255)
-    start_date = models.DateTimeField()
-    updated_at = models.DateTimeField(auto_now=True)
-    policy_length = models.DurationField()  # corresponds to a datetime.timedelta
-
-    class PrivacyMeta(PrivacyMeta):
-        fields = [
-            "related_objects",  # We use a regular field to have a method hook since it's not a real field on the model
-        ]
-
-        def anonymise_related_objects(self, instance, user):
-            # maybe make a recursive log call here?
-            instance._log_gdpr_recursive(user=user, start=True)
-            for related_object in instance.list_related_objects():
-                related_object.anonymise(user=user)
-            instance._log_gdpr_recursive(user=user, start=False)
-
-    def list_related_objects(self):
-        return [
-            related_object
-            for field in self._meta.get_fields()
-            if field.is_relation and field.one_to_many
-            for related_object in getattr(self, field.get_accessor_name()).all()
-        ]
-
-    def should_be_anonymised(self):
-        if self.policy_length is None:
-            return False
-
-        return timezone.now() > self.start_date + self.policy_length
-
-    def __str__(self):
-        if self.description:
-            return self.description
-
-        return "Retention Policy %s starts %s days after %s" % (self.id, self.start_date, self.policy_length)
-
-    @classmethod
-    def get_anonymisation_tree(cls, prefix="", doprint=False, objs=None):
-        """
-        The anonymisation tree for a retention policy should show the number
-        of objects about to be anonymised.
-        """
-        if objs is None:
-            objs = []
-
-        # Flat list of related objects
-        related_objects_by_class = defaultdict(list)
-
-        for obj in objs:
-            for related_object in obj.list_related_objects():
-                related_objects_by_class[related_object.__class__].append(related_object)
-
-        tree_html = ""
-        for class_, related_objects in related_objects_by_class.items():
-            tree = class_.get_anonymisation_tree()  # possibly surface this info (what will be anonymised by class
-
-            # summarize the first 10
-            related_objects_summaries = [
-                "<li>{related_object}</li>".format(related_object=related_object)
-                for related_object in related_objects[:10]
-            ]
-
-            if len(related_objects) > 10:
-                related_objects_summaries.append('<li style="list-style-type: none;">...</li>')
-
-            tree_html += (
-                '<br/><b title="{tree}">{class_name}</b> ({related_objects_count})<ul>{summaries}</ul>\n'.format(
-                    tree=tree,
-                    class_name=class_.__name__,
-                    related_objects_count=len(objs),
-                    summaries="\n".join(related_objects_summaries),
-                )
-            )
-
-        return mark_safe(tree_html)
 
 
 class EventLogManager(models.Manager):
