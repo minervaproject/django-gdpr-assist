@@ -117,6 +117,10 @@ class ModelAdmin(admin.ModelAdmin):
         tree_html = ""
 
         tree = self.model.get_anonymisation_tree(objs=objects).replace(" [set_field]", "").replace(" [fk]", "")
+
+        if hasattr(objects.first(), 'get_anonymisation_tree_for_obj'):
+            tree = "\n".join([o.get_anonymisation_tree_for_obj() for o in objects])
+
         this_html = "{model_name}:\n{tree}\n\n".format(model_name=self.model.__name__, tree=tree)
         if self.model.__name__ != "RetentionPolicyItem":
             this_html = "<pre>{html}</pre>".format(html=this_html)
