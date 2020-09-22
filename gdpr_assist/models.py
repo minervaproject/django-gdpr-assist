@@ -25,10 +25,10 @@ from . import handlers  # noqa
 from .anonymiser import anonymise_field, anonymise_related_objects
 from .signals import pre_anonymise, post_anonymise
 
-try:
-    from exceptions import RecursionError
-except ImportError:  # Handle python < 3
+try:  # Handle python < 3.5
     from exceptions import RuntimeError as RecursionError
+except ModuleNotFoundError:  # RecursionError is present in global namespace and was moved to builtins for python > 3.5
+    from builtins import RecursionError 
 
 logger = logging.getLogger(__name__)
 
