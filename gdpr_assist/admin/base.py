@@ -38,7 +38,7 @@ class ModelAdmin(admin.ModelAdmin):
 
     def get_actions(self, request):
         actions = super(ModelAdmin, self).get_actions(request)
-        if getattr(self.model, app_settings.GDPR_PRIVACY_INSTANCE_NAME):
+        if getattr(self.model, app_settings.GDPR_PRIVACY_INSTANCE_NAME, False):
             actions['anonymise'] = (
                 self.anonymise_action,
                 'anonymise',
